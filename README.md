@@ -42,9 +42,9 @@ EcoSphere relies on data coefficients derived from **EPA** and **IPCC** standard
 
 ### 2. Home Energy
 - **Electricity**:
-  $$\text{CO}_2\text{ (kg/month)} = \frac{\text{Monthly Bill (\$)}}{\text{Avg Rate (\$0.16/kWh)}} \times 0.371\text{ kg/kWh} \times (1 - \text{Renewable \%})$$
+  $$\text{CO}_2\text{ (kg/month)} = \frac{\text{Monthly Bill (USD)}}{\text{Avg Rate (0.16 USD/kWh)}} \times 0.371\text{ kg/kWh} \times (1 - \text{Renewable \%})$$
 - **Heating Fuel** (Natural Gas / Heating Oil):
-  $$\text{CO}_2\text{ (kg/month)} = \text{Heating Bill (\$)} \times 0.42\text{ kg/dollar}$$
+  $$\text{CO}_2\text{ (kg/month)} = \text{Heating Bill (USD)} \times 0.42\text{ kg/USD}$$
 
 ### 3. Diet & Food
 Emissions are calculated on an annual basis and divided by 12:
