@@ -1,120 +1,174 @@
 # 🌍 EcoSphere — Interactive Carbon Footprint Tracker
 
-EcoSphere is a premium, client-side web application designed to help individuals understand, track, and reduce their carbon footprint. Aligning with the **Individual Carbon Footprint Tracking & Reduction Assistant** vertical, EcoSphere combines a real-time carbon calculator, an active challenge center, dynamic charts, personalized feedback, and built-in unit testing.
+> A premium, client-side carbon footprint calculator with real-time visualizations, gamified eco-challenges, personalized recommendations, and a built-in unit test suite — all in vanilla JavaScript, zero dependencies, zero server.
+
+---
+
+## 📸 Screenshots
+
+### Dashboard — Live Emissions Gauge & Charts
+![EcoSphere Dashboard](screenshots/dashboard.png)
+
+### Carbon Calculator — Multi-Category Inputs
+![Carbon Calculator](screenshots/calculator.png)
+
+### Eco Challenges — Gamified Actions
+![Eco Challenges](screenshots/challenges.png)
+
+### System Integrity Tests — In-Browser Test Runner
+![Test Suite](screenshots/tests.png)
 
 ---
 
 ## 🚀 Key Features
 
-1. **Real-time Carbon Calculator**:
-   - Multi-category input forms: **Transportation**, **Home Energy**, **Diet & Food**, and **Consumption/Shopping**.
-   - Direct feedback loops showing metric adjustments instantly on the gauge.
-2. **Action & Challenge Center (Gamified)**:
-   - Commit to daily green tasks (e.g., "Meatless Day", "Line Dry Clothes").
-   - Mark tasks completed to earn carbon savings, build streak counts, and level up (e.g., *Eco-Novice* to *Planet Champion*).
-3. **Data Visualization (Chart.js)**:
-   - Interactive breakdown donut chart showing current emissions by category.
-   - Projected reduction line chart showing your target path based on active eco-habits.
-4. **Tailored Insights & Conversions**:
-   - Automated calculations converting raw CO2 savings into relatable metrics (e.g., tree seedling equivalents, smartphone charges).
-   - Smarter recommendations triggered by your highest-emitting categories.
-5. **Built-in Test Suite**:
-   - A dedicated verification module testing formula outputs directly in the browser.
+**Real-time Carbon Calculator** — Four emission categories (Transportation, Home Energy, Diet & Food, Consumption) update a live circular gauge on every input via debounced event handling, keeping CPU usage near 0% at idle.
+
+**Gamified Challenge Center** — Commit to daily green habits (e.g. "Meatless Day", "Line Dry Clothes") to earn XP, build streaks, and level up from *Eco-Novice* to *Planet Savior*. DOM updates are surgical — only the affected card is touched, not the entire list.
+
+**Data Visualization** — Interactive Chart.js donut showing current emissions by category, plus a 6-month projected reduction line chart driven by committed habits.
+
+**Personalized Insights** — Recommendations auto-sort by your highest-emitting category so the most impactful advice is always first.
+
+**Built-in Test Suite** — 16 unit tests covering happy-path formulas, boundary conditions, floor clamping, unknown inputs, and zero-value edge cases. All run live in the browser.
+
+---
+
+## 🛠️ Technical Highlights
+
+| Area | Implementation |
+|---|---|
+| **Efficiency** | Debounced input handlers (150ms), surgical DOM updates on challenge interactions, single event-delegated listener per container |
+| **Security** | All DOM writes use `textContent` / `createElement` — zero `innerHTML`. Numeric inputs clamped to valid ranges via `clamp()` before reaching the calculation engine |
+| **Code Quality** | Strict mode, JSDoc on every function, named constants replacing magic numbers (e.g. `GAUGE_RADIUS = 90` → `2 * Math.PI * GAUGE_RADIUS`), no global namespace pollution |
+| **Accessibility** | WCAG 2.1 AA — semantic HTML5 landmarks, ARIA labels on all inputs, full keyboard navigation, high-contrast color profiles |
+| **Testing** | 16 assertions across 4 modules: transport, energy, diet, consumption — including unknown vehicle types, input floors, and scale-invariant zero tests |
 
 ---
 
 ## 📐 Calculation Formulas & Emission Factors
 
-EcoSphere relies on data coefficients derived from **EPA** and **IPCC** standards:
+All coefficients are derived from **EPA** and **IPCC** published standards.
 
-### 1. Transportation
-- **Personal Vehicle**:
-  $$\text{CO}_2\text{ (kg/month)} = \text{Mileage (miles/week)} \times 4.33 \times \text{Fuel Efficiency Coefficient}$$
-  *Fuel Efficiency Coefficients:*
-  - Gasoline Car (Average): $0.404\text{ kg/mile}$
-  - Hybrid Car: $0.200\text{ kg/mile}$
-  - Electric Vehicle (EV): $0.080\text{ kg/mile}$ (accounting for grid average)
-  - Motorcycle: $0.210\text{ kg/mile}$
-- **Public Transit**:
-  $$\text{CO}_2\text{ (kg/month)} = \text{Transit Mileage (miles/week)} \times 4.33 \times 0.14\text{ kg/mile}$$
-- **Flights**:
-  $$\text{CO}_2\text{ (kg/month)} = \text{Flight Hours (hours/year)} \times \frac{90.0\text{ kg/hour}}{12}$$
+### Transportation
 
-### 2. Home Energy
-- **Electricity**:
-  $$\text{CO}_2\text{ (kg/month)} = \frac{\text{Monthly Bill (USD)}}{\text{Avg Rate (0.16 USD/kWh)}} \times 0.371\text{ kg/kWh} \times (1 - \text{Renewable \%})$$
-- **Heating Fuel** (Natural Gas / Heating Oil):
-  $$\text{CO}_2\text{ (kg/month)} = \text{Heating Bill (USD)} \times 0.42\text{ kg/USD}$$
+| Mode | Formula |
+|---|---|
+| Personal Vehicle | `mileage_per_week × 4.33 × fuel_factor` |
+| Public Transit | `transit_miles_per_week × 4.33 × 0.14` |
+| Flights | `flight_hours_per_year × 90.0 / 12` |
 
-### 3. Diet & Food
-Emissions are calculated on an annual basis and divided by 12:
-- **Diet Types**:
-  - Heavy Meat Eater: $3,300\text{ kg/year}$ ($275.0\text{ kg/month}$)
-  - Average Diet: $2,500\text{ kg/year}$ ($208.3\text{ kg/month}$)
-  - Vegetarian: $1,700\text{ kg/year}$ ($141.7\text{ kg/month}$)
-  - Vegan: $1,500\text{ kg/year}$ ($125.0\text{ kg/month}$)
-- **Food Sourcing**:
-  - Imported Food Bias: $+15\text{ kg/month}$
-  - Local Food Bias: $-10\text{ kg/month}$
-- **Food Waste**:
-  - High Waste: $+20\text{ kg/month}$
-  - Low Waste: $-15\text{ kg/month}$
+Fuel factors: Gasoline `0.404 kg/mi` · Hybrid `0.200` · EV `0.080` · Motorcycle `0.210`
 
-### 4. Consumption & Waste
-- **Shopping**:
-  - Low (Minimalist): $30\text{ kg/month}$
-  - Medium (Average): $90\text{ kg/month}$
-  - High (Frequent Consumer): $220\text{ kg/month}$
-- **Recycling Credit**:
-  - Advanced Recycling: $-25\text{ kg/month}$
-  - No Recycling: $+10\text{ kg/month}$
+### Home Energy
+
+| Source | Formula |
+|---|---|
+| Electricity | `(bill / 0.16) × 0.371 × (1 − renewable%)` |
+| Heating Fuel | `heating_bill × 0.42` |
+
+### Diet & Food (monthly)
+
+| Diet | Base kg/mo | Modifiers |
+|---|---|---|
+| Heavy Meat | 275.0 | Local food: −10 · Low waste: −15 |
+| Average | 208.3 | |
+| Vegetarian | 141.7 | |
+| Vegan | 125.0 | Floor: 20 kg |
+
+### Consumption & Waste
+
+| Level | Base kg/mo |
+|---|---|
+| Minimalist | 30 |
+| Average | 90 |
+| Frequent | 220 |
+
+Recycling credit: −25 kg · No recycling penalty: +10 kg · Floor: 5 kg
 
 ---
 
 ## 🏗️ Architecture & Data Flow
 
-Below is the conceptual architecture showing how data flows through the application:
-
 ```mermaid
 graph TD
-    UserInputs[User Form Inputs] -->|Real-time input event| CalcEngine[Carbon Calculation Engine]
+    UserInputs[User Form Inputs] -->|Debounced input event| CalcEngine[Carbon Calculation Engine]
     CalcEngine -->|Calculates category & total CO2| AppState[Central App State]
     AppState -->|Triggers UI update| CircularGauge[Emissions Circle Gauge]
     AppState -->|Updates breakdowns| ChartPie[Chart.js Category Donut]
     AppState -->|Pushes predictions| ChartLine[Chart.js Projected Line Chart]
     AppState -->|Analyzes high-emission areas| InsightEngine[Personalized Recommendations]
-    
+
     EcoChallenges[Challenge & Commitment Panel] -->|Commit / Complete| ReductionEngine[Savings Calculator]
     ReductionEngine -->|Reduces monthly projected CO2| AppState
     ReductionEngine -->|Updates streaks & level up| LevelGauge[Gamified Level Badge]
-    
+
     BuiltInTests[tests.js Module] -->|On Load / Trigger| TestRunner[Test Dashboard]
     TestRunner -->|Asserts values & formulas| UIFeedback[Test Result Display]
 ```
 
 ---
 
-## 🛠️ Security, Efficiency & Accessibility
+## 🧪 Test Coverage
 
-- **Security**: Inputs are strictly sanitised to prevent Cross-Site Scripting (XSS). There are no HTML injection vectors, and standard values are enforced via input range validators.
-- **Efficiency**: Written in modular Vanilla Javascript, the codebase is lightweight (~150KB), loading instantly. It maintains a footprint close to 0% CPU idle, keeping project size well under the 10 MB repository threshold.
-- **Accessibility**: EcoSphere implements **WCAG 2.1 AA** standards:
-  - Semantic HTML tags (`<header>`, `<main>`, `<section>`, `<article>`).
-  - Strict high color contrast profiles.
-  - Complete ARIA labels on sliders and form fields.
-  - Fully keyboard navigatable (users can Tab through all inputs and interact via Space/Enter keys).
+```
+Transportation Tests (5)
+  ✅ Petrol car 100 miles/week
+  ✅ Hybrid car 100 miles/week
+  ✅ EV 150 miles/week
+  ✅ Public transit 200 miles/week
+  ✅ 12 annual flight hours
+
+Home Energy Tests (3)
+  ✅ $100 bill at 0% renewable
+  ✅ $100 bill at 100% renewable → 0 kg
+  ✅ $100 heating fuel
+
+Diet Tests (3)
+  ✅ Vegan + local + zero waste
+  ✅ Heavy meat, standard sourcing
+  ✅ Vegan baseline without modifiers
+
+Consumption Tests (2)
+  ✅ Average shopping + recycling
+  ✅ High shopping, no recycling
+
+Edge Cases (3)
+  ✅ Unknown vehicle type → 0 emissions (no crash)
+  ✅ All-zero transport inputs → 0 kg
+  ✅ Minimal shopping + recycling → hits 5 kg floor
+```
 
 ---
 
-## 🧪 Running the Code & Tests
+## 🚀 Running Locally
 
-1. Open `index.html` directly in any modern web browser.
-2. In the navigation sidebar, click on **System Integrity Tests** to view the live unit test status (evaluating carbon engine values, savings reductions, and streak calculations).
-3. Open the developer console (`F12`) to view detailed test logs.
+```bash
+git clone https://github.com/meetchhugani81/ecosphere.git
+cd ecosphere
+# No install needed — open directly in browser
+open index.html
+```
+
+Navigate to **System Integrity Tests** in the sidebar and click **Run Unit Tests** to verify all 16 assertions pass.
 
 ---
 
-## 📝 Assumptions & Reference Baselines
-- The global average target is set at **4.8 Metric Tons of CO2 per capita annually** (approx. **400 kg/month**).
-- Energy utility calculations assume an average US electrical rate of $0.16 per kWh.
-- Committing to a daily habit (e.g. Biking to work) scales weekly savings based on the user's travel distance entered in their transport parameters.
+## 📝 Assumptions & Baselines
+
+- Global average target: **4.8 metric tons CO₂/year** (~400 kg/month)
+- US average electricity rate: **$0.16/kWh**
+- EV emissions factor accounts for US average grid carbon intensity
+- Challenge savings scale linearly over 5 months in the projection chart
+
+---
+
+## 📁 File Structure
+
+```
+ecosphere/
+├── index.html      # App shell, semantic HTML5, ARIA labels
+├── app.js          # Carbon engine, state, UI renderers, charts
+├── tests.js        # 16-assertion in-browser unit test suite
+└── styles.css      # WCAG 2.1 AA compliant, CSS variables
+```
