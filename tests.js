@@ -160,6 +160,49 @@
     );
 
     Assert.info("Unit tests completed.");
+
+
+    // --- EDGE CASE & BOUNDARY TESTS ---
+    Assert.info("Running Edge Case & Boundary Tests...");
+
+    // Unknown car type should default to 0 factor (no car emissions)
+    Assert.assertEqual(
+      engine.calculateTransport('helicopter', 100, 0, 0),
+      0.0,
+      "Unknown vehicle type defaults to zero car emissions"
+    );
+
+    // Zero inputs should produce zero transport emissions
+    Assert.assertEqual(
+      engine.calculateTransport('none', 0, 0, 0),
+      0.0,
+      "All-zero transport inputs return 0 kg"
+    );
+
+    // Vegan diet floor: even with both reductions, floor is 20 kg
+    // Base 125 - 10 (local) - 15 (waste) = 100 kg, floor not hit here
+    // Force floor: use vegan with impossible manual test
+    Assert.assertEqual(
+      engine.calculateDiet('vegan', false, false),
+      125.0,
+      "Vegan with no local, no waste reduction stays at 125 kg"
+    );
+
+    // Consumption floor test: minimal shopping + recycling = 30 - 25 = 5 kg (hits Math.max(5,...))
+    Assert.assertEqual(
+      engine.calculateConsumption('minimal', true),
+      5.0,
+      "Minimal shopping with recycling hits the 5 kg floor"
+    );
+
+    // 100% renewable electricity should produce zero electricity emissions
+    Assert.assertEqual(
+      engine.calculateEnergy(200, 0, 100),
+      0.0,
+      "Full renewable energy share produces zero electricity emissions regardless of bill size"
+    );
+
+    Assert.info("All tests completed.");
     updateTestUI();
   }
 

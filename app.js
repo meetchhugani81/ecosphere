@@ -142,7 +142,29 @@ let breakdownChart = null;
 let projectionChart = null;
 
 /**
- * Creates a debounced function that delays execution.
+ * Clamps a number between min and max bounds.
+ * Prevents out-of-range values from reaching the calculation engine.
+ * @param {number} value
+ * @param {number} min
+ * @param {number} max
+ * @returns {number}
+ */
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+// Numeric input bounds for all calculator fields
+const INPUT_BOUNDS = {
+  carMileage:      { min: 0,   max: 500 },
+  transitMileage:  { min: 0,   max: 300 },
+  flightHours:     { min: 0,   max: 100 },
+  electricityBill: { min: 0,   max: 400 },
+  heatingBill:     { min: 0,   max: 300 },
+  cleanPct:        { min: 0,   max: 100 }
+};
+
+/**
+ * Debounces a function, delaying its execution until after the wait period has elapsed.
  * @param {Function} func - The function to debounce.
  * @param {number} wait - The delay in milliseconds.
  * @returns {Function}
@@ -219,7 +241,11 @@ function initFormInputs() {
 
     el.addEventListener('input', (e) => {
       const value = isCheckbox ? e.target.checked : e.target.value;
-      AppState.inputs[stateKey] = isCheckbox ? value : (isNaN(value) ? value : Number(value));
+      let parsed = isCheckbox ? value : (isNaN(value) ? value : Number(value));
+      if (!isCheckbox && typeof parsed === 'number' && INPUT_BOUNDS[stateKey]) {
+        parsed = clamp(parsed, INPUT_BOUNDS[stateKey].min, INPUT_BOUNDS[stateKey].max);
+      }
+      AppState.inputs[stateKey] = parsed;
       
       const valBadge = document.getElementById(`${id}-val`);
       if (valBadge) {
@@ -289,7 +315,8 @@ function updateDashboardUI(t, e, d, c, total) {
   const circle = document.getElementById('footprint-circle');
   if (circle) {
     const maxVal = 1000;
-    const circumference = 565.48;
+    const GAUGE_RADIUS = 90; // SVG circle r="90" in index.html
+    const circumference = 2 * Math.PI * GAUGE_RADIUS; // ≈ 565.49
     const clampedVal = Math.min(total, maxVal);
     const offset = circumference - (clampedVal / maxVal) * circumference;
     circle.style.strokeDashoffset = offset.toString();
@@ -423,6 +450,18 @@ function initChallenges() {
 
   container.textContent = '';
 
+  // Event delegation: attach only once using a flag on the container element.
+  if (!container.dataset.listenerAttached) {
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-challenge-id');
+      if (btn.getAttribute('data-action') === 'commit') toggleCommitment(id);
+      if (btn.getAttribute('data-action') === 'complete') completeChallenge(id);
+    });
+    container.dataset.listenerAttached = 'true';
+  }
+
   AppState.challenges.forEach(ch => {
     const isCommitted = AppState.commitments.includes(ch.id);
     const isCompleted = AppState.completedToday.includes(ch.id);
@@ -463,7 +502,8 @@ function initChallenges() {
     const commitBtn = document.createElement('button');
     commitBtn.className = `btn btn-outline ${isCommitted ? 'committed' : ''}`;
     commitBtn.setAttribute('aria-label', `Commit to ${ch.title}`);
-    commitBtn.onclick = () => toggleCommitment(ch.id);
+    commitBtn.setAttribute('data-action', 'commit');
+    commitBtn.setAttribute('data-challenge-id', ch.id);
 
     const commitIcon = document.createElement('i');
     commitIcon.setAttribute('data-lucide', isCommitted ? 'check-circle-2' : 'plus');
@@ -479,7 +519,8 @@ function initChallenges() {
     if (isCompleted) {
       completeBtn.setAttribute('disabled', 'true');
     }
-    completeBtn.onclick = () => completeChallenge(ch.id);
+    completeBtn.setAttribute('data-action', 'complete');
+    completeBtn.setAttribute('data-challenge-id', ch.id);
 
     const completeIcon = document.createElement('i');
     completeIcon.setAttribute('data-lucide', 'award');
@@ -501,38 +542,67 @@ function initChallenges() {
 }
 
 /**
- * Toggles commitment state.
+ * Toggles commitment state and surgically updates only the affected card.
+ * Avoids full DOM rebuild of all challenge cards on each interaction.
  * @param {string} challengeId
  */
-window.toggleCommitment = function(challengeId) {
+function toggleCommitment(challengeId) {
   const index = AppState.commitments.indexOf(challengeId);
-  if (index === -1) {
+  const isNowCommitted = index === -1;
+
+  if (isNowCommitted) {
     AppState.commitments.push(challengeId);
     AppState.user.xp += 10;
   } else {
     AppState.commitments.splice(index, 1);
     AppState.user.xp = Math.max(0, AppState.user.xp - 10);
   }
-  
-  initChallenges();
+
+  // Surgical update: only touch the commit button on this card
+  const card = document.getElementById(`challenge-${challengeId}`);
+  if (card) {
+    const commitBtn = card.querySelector('.btn-outline');
+    if (commitBtn) {
+      commitBtn.classList.toggle('committed', isNowCommitted);
+      const iconEl = commitBtn.querySelector('i');
+      const textEl = commitBtn.querySelector('span');
+      if (iconEl) iconEl.setAttribute('data-lucide', isNowCommitted ? 'check-circle-2' : 'plus');
+      if (textEl) textEl.textContent = isNowCommitted ? 'Committed' : 'Commit';
+      if (window.lucide) window.lucide.createIcons();
+    }
+  }
+
   recalculateEmissions();
-};
+}
 
 /**
- * Completes carbon challenge.
+ * Completes a carbon challenge and surgically updates only the affected card.
+ * Avoids full DOM rebuild of all challenge cards on each interaction.
  * @param {string} challengeId
  */
-window.completeChallenge = function(challengeId) {
+function completeChallenge(challengeId) {
   if (AppState.completedToday.includes(challengeId)) return;
-  
+
   const challenge = AppState.challenges.find(c => c.id === challengeId);
+  if (!challenge) return;
+
   AppState.completedToday.push(challengeId);
   AppState.user.xp += challenge.xp;
   AppState.user.streak += 1;
-  
-  initChallenges();
+
+  // Surgical update: only disable the complete button on this card
+  const card = document.getElementById(`challenge-${challengeId}`);
+  if (card) {
+    const completeBtn = card.querySelector('.btn-success');
+    if (completeBtn) {
+      completeBtn.setAttribute('disabled', 'true');
+      const textEl = completeBtn.querySelector('span');
+      if (textEl) textEl.textContent = 'Done!';
+    }
+  }
+
   recalculateEmissions();
-};
+}
 
 // Chart.js initialization
 function initCharts() {
