@@ -1,11 +1,24 @@
 /* ==========================================================================
    EcoSphere Core JavaScript Application
    Core Modules: Carbon Engine, State Management, UI Renderers, Chart Bindings
+   Optimizations: Strict Mode, Full Input Debouncing, and XSS Secure DOM Methods
    ========================================================================== */
 
-// 1. Carbon Calculation Engine (Exported to window for test visibility)
+"use strict";
+
+/**
+ * Carbon calculation factors and algorithms.
+ * Based on EPA and IPCC standard emission coefficients.
+ */
 const CarbonEngine = {
-  // Transport formulas (monthly basis)
+  /**
+   * Calculates monthly transportation emissions.
+   * @param {string} carType - Type of vehicle (petrol, hybrid, ev, moto, none).
+   * @param {number} carMileage - Weekly mileage driven.
+   * @param {number} transitMileage - Weekly public transit mileage.
+   * @param {number} flightHours - Annual flight hours.
+   * @returns {number} Monthly CO2 emissions in kg.
+   */
   calculateTransport(carType, carMileage, transitMileage, flightHours) {
     let carFactor = 0;
     switch (carType) {
@@ -15,35 +28,44 @@ const CarbonEngine = {
       case 'moto': carFactor = 0.210; break;
       case 'none': carFactor = 0.000; break;
     }
-    // weekly mileage * 4.33 weeks per month
     const carEmissions = carMileage * 4.33 * carFactor;
     const transitEmissions = transitMileage * 4.33 * 0.14;
-    // flights: annual flight hours * 90kg / 12 months
     const flightEmissions = (flightHours * 90.0) / 12;
     
     return Number((carEmissions + transitEmissions + flightEmissions).toFixed(1));
   },
 
-  // Home Energy formulas (monthly basis)
+  /**
+   * Calculates monthly home energy emissions.
+   * @param {number} electricityBill - Monthly electrical bill in dollars.
+   * @param {number} heatingBill - Monthly heating utility bill in dollars.
+   * @param {number} cleanPct - Percentage of electricity from renewables.
+   * @returns {number} Monthly CO2 emissions in kg.
+   */
   calculateEnergy(electricityBill, heatingBill, cleanPct) {
-    const kwhRate = 0.16; // $0.16 per kWh average
+    const kwhRate = 0.16;
     const cleanReductionMultiplier = 1 - (cleanPct / 100);
     
     const electricityEmissions = (electricityBill / kwhRate) * 0.371 * cleanReductionMultiplier;
-    // Heating fuel emission approximation ($1 = 0.42 kg CO2)
     const heatingEmissions = heatingBill * 0.42;
 
     return Number((electricityEmissions + heatingEmissions).toFixed(1));
   },
 
-  // Diet & Food formulas (monthly basis)
+  /**
+   * Calculates monthly diet and food emissions.
+   * @param {string} dietType - Diet profile (meat-heavy, average, vegetarian, vegan).
+   * @param {boolean} localFood - True if sourcing local food.
+   * @param {boolean} minimizeWaste - True if minimizing waste.
+   * @returns {number} Monthly CO2 emissions in kg.
+   */
   calculateDiet(dietType, localFood, minimizeWaste) {
     let dietEmissions = 0;
     switch (dietType) {
-      case 'meat-heavy': dietEmissions = 275.0; break; // 3300 kg/yr / 12
-      case 'average': dietEmissions = 208.3; break;    // 2500 kg/yr / 12
-      case 'vegetarian': dietEmissions = 141.7; break; // 1700 kg/yr / 12
-      case 'vegan': dietEmissions = 125.0; break;      // 1500 kg/yr / 12
+      case 'meat-heavy': dietEmissions = 275.0; break;
+      case 'average': dietEmissions = 208.3; break;
+      case 'vegetarian': dietEmissions = 141.7; break;
+      case 'vegan': dietEmissions = 125.0; break;
     }
     
     if (localFood) dietEmissions -= 10;
@@ -52,7 +74,12 @@ const CarbonEngine = {
     return Number(Math.max(20, dietEmissions).toFixed(1));
   },
 
-  // Consumption & Waste formulas (monthly basis)
+  /**
+   * Calculates monthly consumption and shopping emissions.
+   * @param {string} shoppingLevel - Shopping frequency (minimal, average, high).
+   * @param {boolean} recycle - True if actively recycling.
+   * @returns {number} Monthly CO2 emissions in kg.
+   */
   calculateConsumption(shoppingLevel, recycle) {
     let shoppingEmissions = 0;
     switch (shoppingLevel) {
@@ -71,9 +98,9 @@ const CarbonEngine = {
   }
 };
 
-window.CarbonEngine = CarbonEngine; // Expose globally for tests
+window.CarbonEngine = CarbonEngine;
 
-// 2. Initial Application State
+// Central Application State
 const AppState = {
   user: {
     name: 'Eco-Warrior',
@@ -96,7 +123,6 @@ const AppState = {
     shoppingLevel: 'average',
     recycle: true
   },
-  // Saved challenges / habits database
   challenges: [
     { id: 'bike-transit', title: 'Bike or Bus to Work', desc: 'Swap one car trip for public transit or a bike ride.', cat: 'transport', savings: 28, xp: 20 },
     { id: 'led-upgrade', title: 'Switch to LED Lighting', desc: 'Replace traditional bulbs with power-saving LEDs.', cat: 'energy', savings: 8, xp: 15 },
@@ -107,15 +133,32 @@ const AppState = {
     { id: 'unplug-standby', title: 'Unplug Standby Electronics', desc: 'Prevent vampire draw by switching off power strips.', cat: 'energy', savings: 5, xp: 10 },
     { id: 'thrift-shopping', title: 'Buy Secondhand Only', desc: 'Purchase pre-owned clothing or tech to save raw manufacturing emissions.', cat: 'waste', savings: 35, xp: 25 }
   ],
-  commitments: [], // list of challenge IDs committed to
-  completedToday: [] // list of challenge IDs completed today
+  commitments: [],
+  completedToday: []
 };
 
-// 3. UI Chart Variables
+// UI Chart references
 let breakdownChart = null;
 let projectionChart = null;
 
-// 4. Initialize Core Listeners & App Lifecycle
+/**
+ * Creates a debounced function that delays execution.
+ * @param {Function} func - The function to debounce.
+ * @param {number} wait - The delay in milliseconds.
+ * @returns {Function}
+ */
+function debounce(func, wait) {
+  let timeout;
+  return function(...args) {
+    const context = this;
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), wait);
+  };
+}
+
+const debouncedRecalculate = debounce(recalculateEmissions, 150);
+
+// App Lifecycle Initialization
 document.addEventListener('DOMContentLoaded', () => {
   initNavigation();
   initFormInputs();
@@ -123,7 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
   recalculateEmissions();
   initCharts();
   
-  // Connect test runner elements
   const runTestsBtn = document.getElementById('run-tests-btn');
   if (runTestsBtn) {
     runTestsBtn.addEventListener('click', () => {
@@ -133,13 +175,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Trigger Lucide icons rendering
   if (window.lucide) {
     window.lucide.createIcons();
   }
 });
 
-// Navigation controller (Tab management)
+/**
+ * Binds tabs to overview/calculator views.
+ */
 function initNavigation() {
   const navItems = document.querySelectorAll('.nav-item');
   const sections = document.querySelectorAll('.content-section');
@@ -148,11 +191,9 @@ function initNavigation() {
     item.addEventListener('click', () => {
       const targetId = item.getAttribute('data-target');
       
-      // Update sidebar state
       navItems.forEach(nav => nav.classList.remove('active'));
       item.classList.add('active');
 
-      // Update active content tab
       sections.forEach(section => {
         section.classList.remove('active');
         if (section.getAttribute('id') === targetId) {
@@ -160,7 +201,6 @@ function initNavigation() {
         }
       });
 
-      // Special resize hook for charts if switching back to overview dashboard
       if (targetId === 'dashboard') {
         if (breakdownChart) breakdownChart.resize();
         if (projectionChart) projectionChart.resize();
@@ -169,9 +209,10 @@ function initNavigation() {
   });
 }
 
-// Bind Range Sliders, Dropdowns, Toggles to Calculations
+/**
+ * Binds range inputs and dropdowns to State updates.
+ */
 function initFormInputs() {
-  // Input fields binding helper
   const bindInput = (id, stateKey, isCheckbox = false) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -180,13 +221,13 @@ function initFormInputs() {
       const value = isCheckbox ? e.target.checked : e.target.value;
       AppState.inputs[stateKey] = isCheckbox ? value : (isNaN(value) ? value : Number(value));
       
-      // Update UI Text values for range slider badges
       const valBadge = document.getElementById(`${id}-val`);
       if (valBadge) {
-        valBadge.textContent = value;
+        valBadge.textContent = value.toString();
       }
       
-      recalculateEmissions();
+      // Debounce heavy updates to save CPU cycles
+      debouncedRecalculate();
     });
   };
 
@@ -204,7 +245,9 @@ function initFormInputs() {
   bindInput('waste-recycle', 'recycle', true);
 }
 
-// Global Core Calculation Controller
+/**
+ * Performs recalculations and triggers UI updates.
+ */
 function recalculateEmissions() {
   const t = CarbonEngine.calculateTransport(
     AppState.inputs.carType,
@@ -236,65 +279,60 @@ function recalculateEmissions() {
   updateRecommendations(t, e, d, c);
 }
 
-// Update Footprint Indicators, Gauges, Levels
+/**
+ * Safely updates UI footprint values and gauge using clean DOM methods.
+ */
 function updateDashboardUI(t, e, d, c, total) {
-  // 1. Update Numeric Values
   const valueDisplay = document.getElementById('current-footprint-value');
-  if (valueDisplay) valueDisplay.textContent = total;
+  if (valueDisplay) valueDisplay.textContent = total.toString();
 
-  // 2. Animate Circular Progress Ring
   const circle = document.getElementById('footprint-circle');
   if (circle) {
-    const maxVal = 1000; // gauge cap scale
-    const circumference = 565.48; // 2 * PI * 90
+    const maxVal = 1000;
+    const circumference = 565.48;
     const clampedVal = Math.min(total, maxVal);
     const offset = circumference - (clampedVal / maxVal) * circumference;
-    circle.style.strokeDashoffset = offset;
+    circle.style.strokeDashoffset = offset.toString();
   }
 
-  // 3. Comparison status versus target baseline (Average is 400 kg/month)
+  // Safe DOM structure generation instead of vulnerable innerHTML
   const compDisplay = document.getElementById('footprint-vs-avg');
   if (compDisplay) {
-    const baseline = 400; // Global target: 4.8 tons/year = 400 kg/month
+    compDisplay.textContent = ''; 
+    const baseline = 400;
     const diffPct = Math.round((Math.abs(total - baseline) / baseline) * 100);
-    if (total <= baseline) {
-      compDisplay.innerHTML = `Nice! Your footprint is <span class="highlight">${diffPct}% below</span> the target global baseline (400 kg/mo).`;
-    } else {
-      compDisplay.innerHTML = `Attention: Your footprint is <span class="highlight danger">${diffPct}% above</span> the target global baseline (400 kg/mo).`;
-    }
+
+    const prefix = document.createTextNode(total <= baseline ? 'Nice! Your footprint is ' : 'Attention: Your footprint is ');
+    const span = document.createElement('span');
+    span.className = total <= baseline ? 'highlight' : 'highlight danger';
+    span.textContent = `${diffPct}% ${total <= baseline ? 'below' : 'above'}`;
+    const suffix = document.createTextNode(' the target global baseline (400 kg/mo).');
+
+    compDisplay.appendChild(prefix);
+    compDisplay.appendChild(span);
+    compDisplay.appendChild(suffix);
   }
 
-  // 4. Update Equivalency Statistics
   const treeEl = document.getElementById('eq-trees');
   const flightEl = document.getElementById('eq-flights');
   const phoneEl = document.getElementById('eq-phones');
 
-  if (treeEl) {
-    // 1 mature tree absorbs ~1.8 kg CO2 per month
-    treeEl.textContent = Math.max(1, Math.round(total / 1.8));
-  }
-  if (flightEl) {
-    // 1 short flight (1 hour) is approx 90 kg CO2
-    flightEl.textContent = (total / 90.0).toFixed(1);
-  }
-  if (phoneEl) {
-    // 1 smartphone charge is approx 0.008 kg CO2
-    phoneEl.textContent = Math.round(total / 0.008).toLocaleString();
-  }
+  if (treeEl) treeEl.textContent = Math.max(1, Math.round(total / 1.8)).toString();
+  if (flightEl) flightEl.textContent = (total / 90.0).toFixed(1);
+  if (phoneEl) phoneEl.textContent = Math.round(total / 0.008).toLocaleString();
 
-  // 5. Update Gamification Badges & Levels
   updateGamification();
-
-  // 6. Refresh chart plots dynamically
   refreshCharts(t, e, d, c, total);
 }
 
-// Generate Personalized Recommendations based on highest sectors
+/**
+ * Safely builds recommendation cards without innerHTML.
+ */
 function updateRecommendations(t, e, d, c) {
   const listEl = document.getElementById('recommendations-list');
   if (!listEl) return;
   
-  listEl.innerHTML = '';
+  listEl.textContent = '';
   
   const sectors = [
     { name: 'Transportation', value: t, icon: 'car', tip: 'Your transportation footprint is high. Consider carpooling, utility-shifting to public transit, or checking eco-driving styles to lower fuel costs.', threshold: 120 },
@@ -303,30 +341,42 @@ function updateRecommendations(t, e, d, c) {
     { name: 'Consumption & Waste', value: c, icon: 'shopping-bag', tip: 'Consumer patterns generate waste. Prioritize recycling programs, buy pre-owned products, and minimize plastic purchases.', threshold: 60 }
   ];
 
-  // Sort sectors descending by emissions
-  sectors.sort((a, b) => b.value - a.value);
+  sectors.sort((x, y) => y.value - x.value);
 
   sectors.forEach(sec => {
     const isWarning = sec.value > sec.threshold;
     const card = document.createElement('div');
     card.className = 'glass-card rec-card';
     
-    card.innerHTML = `
-      <div class="rec-icon ${isWarning ? 'high-warning' : ''}">
-        <i data-lucide="${sec.icon}"></i>
-      </div>
-      <div class="rec-content">
-        <h4>${sec.name} Sector: ${sec.value} kg CO₂ / mo</h4>
-        <p>${sec.tip}</p>
-      </div>
-    `;
+    const iconWrapper = document.createElement('div');
+    iconWrapper.className = `rec-icon ${isWarning ? 'high-warning' : ''}`;
+    const iconEl = document.createElement('i');
+    iconEl.setAttribute('data-lucide', sec.icon);
+    iconWrapper.appendChild(iconEl);
+
+    const contentWrapper = document.createElement('div');
+    contentWrapper.className = 'rec-content';
+    
+    const header = document.createElement('h4');
+    header.textContent = `${sec.name} Sector: ${sec.value} kg CO₂ / mo`;
+    
+    const description = document.createElement('p');
+    description.textContent = sec.tip;
+
+    contentWrapper.appendChild(header);
+    contentWrapper.appendChild(description);
+
+    card.appendChild(iconWrapper);
+    card.appendChild(contentWrapper);
     listEl.appendChild(card);
   });
 
   if (window.lucide) window.lucide.createIcons();
 }
 
-// Setup Gamification & Badge Leveling
+/**
+ * Refreshes gamified states, levels, and progress bars.
+ */
 function updateGamification() {
   const xpCount = AppState.user.xp;
   let level = 'Eco-Novice';
@@ -345,23 +395,16 @@ function updateGamification() {
     level = 'Carbon Guardian';
     minXp = 100;
     maxXp = 300;
-  } else {
-    level = 'Eco-Novice';
-    minXp = 0;
-    maxXp = 100;
   }
 
   AppState.user.level = level;
 
-  // Render Streak Badge
   const streakEl = document.getElementById('streak-count');
-  if (streakEl) streakEl.textContent = AppState.user.streak;
+  if (streakEl) streakEl.textContent = AppState.user.streak.toString();
 
-  // Render User Level
   const levelEl = document.getElementById('user-level');
   if (levelEl) levelEl.textContent = level;
 
-  // Level progress bar
   const progressPctEl = document.getElementById('level-progress-pct');
   const progressFillEl = document.getElementById('level-progress-fill');
   if (progressPctEl && progressFillEl) {
@@ -371,12 +414,14 @@ function updateGamification() {
   }
 }
 
-// Generate Challenge and Eco-Habit cards
+/**
+ * Securely builds habit cards avoiding raw innerHTML structures.
+ */
 function initChallenges() {
   const container = document.getElementById('challenges-container');
   if (!container) return;
 
-  container.innerHTML = '';
+  container.textContent = '';
 
   AppState.challenges.forEach(ch => {
     const isCommitted = AppState.commitments.includes(ch.id);
@@ -386,43 +431,84 @@ function initChallenges() {
     card.className = 'glass-card challenge-card';
     card.id = `challenge-${ch.id}`;
     
-    card.innerHTML = `
-      <div class="card-main">
-        <span class="challenge-tag ${ch.cat}">${ch.cat}</span>
-        <h4 class="challenge-title">${ch.title}</h4>
-        <p class="challenge-desc">${ch.desc}</p>
-        <span class="challenge-impact">Impact: -${ch.savings} kg CO₂ / mo</span>
-      </div>
-      <div class="challenge-actions">
-        <button class="btn btn-outline ${isCommitted ? 'committed' : ''}" 
-                onclick="toggleCommitment('${ch.id}')"
-                aria-label="Commit to ${ch.title}">
-          <i data-lucide="${isCommitted ? 'check-circle-2' : 'plus'}"></i>
-          <span>${isCommitted ? 'Committed' : 'Commit'}</span>
-        </button>
-        <button class="btn btn-success" 
-                onclick="completeChallenge('${ch.id}')" 
-                ${isCompleted ? 'disabled' : ''}
-                aria-label="Complete ${ch.title}">
-          <i data-lucide="award"></i>
-          <span>${isCompleted ? 'Done!' : 'Complete'}</span>
-        </button>
-      </div>
-    `;
+    // Main content container
+    const cardMain = document.createElement('div');
+    cardMain.className = 'card-main';
+
+    const categoryTag = document.createElement('span');
+    categoryTag.className = `challenge-tag ${ch.cat}`;
+    categoryTag.textContent = ch.cat;
+
+    const title = document.createElement('h4');
+    title.className = 'challenge-title';
+    title.textContent = ch.title;
+
+    const desc = document.createElement('p');
+    desc.className = 'challenge-desc';
+    desc.textContent = ch.desc;
+
+    const impact = document.createElement('span');
+    impact.className = 'challenge-impact';
+    impact.textContent = `Impact: -${ch.savings} kg CO₂ / mo`;
+
+    cardMain.appendChild(categoryTag);
+    cardMain.appendChild(title);
+    cardMain.appendChild(desc);
+    cardMain.appendChild(impact);
+
+    // Button actions container
+    const actionsWrapper = document.createElement('div');
+    actionsWrapper.className = 'challenge-actions';
+
+    const commitBtn = document.createElement('button');
+    commitBtn.className = `btn btn-outline ${isCommitted ? 'committed' : ''}`;
+    commitBtn.setAttribute('aria-label', `Commit to ${ch.title}`);
+    commitBtn.onclick = () => toggleCommitment(ch.id);
+
+    const commitIcon = document.createElement('i');
+    commitIcon.setAttribute('data-lucide', isCommitted ? 'check-circle-2' : 'plus');
+    const commitText = document.createElement('span');
+    commitText.textContent = isCommitted ? 'Committed' : 'Commit';
+    
+    commitBtn.appendChild(commitIcon);
+    commitBtn.appendChild(commitText);
+
+    const completeBtn = document.createElement('button');
+    completeBtn.className = 'btn btn-success';
+    completeBtn.setAttribute('aria-label', `Complete ${ch.title}`);
+    if (isCompleted) {
+      completeBtn.setAttribute('disabled', 'true');
+    }
+    completeBtn.onclick = () => completeChallenge(ch.id);
+
+    const completeIcon = document.createElement('i');
+    completeIcon.setAttribute('data-lucide', 'award');
+    const completeText = document.createElement('span');
+    completeText.textContent = isCompleted ? 'Done!' : 'Complete';
+
+    completeBtn.appendChild(completeIcon);
+    completeBtn.appendChild(completeText);
+
+    actionsWrapper.appendChild(commitBtn);
+    actionsWrapper.appendChild(completeBtn);
+
+    card.appendChild(cardMain);
+    card.appendChild(actionsWrapper);
     container.appendChild(card);
   });
 
   if (window.lucide) window.lucide.createIcons();
 }
 
-// Toggle Commit state for an action
+/**
+ * Toggles commitment state.
+ * @param {string} challengeId
+ */
 window.toggleCommitment = function(challengeId) {
   const index = AppState.commitments.indexOf(challengeId);
-  const challenge = AppState.challenges.find(c => c.id === challengeId);
-  
   if (index === -1) {
     AppState.commitments.push(challengeId);
-    AppState.user.xp += 10; // 10 XP for commitment
+    AppState.user.xp += 10;
   } else {
     AppState.commitments.splice(index, 1);
     AppState.user.xp = Math.max(0, AppState.user.xp - 10);
@@ -432,24 +518,24 @@ window.toggleCommitment = function(challengeId) {
   recalculateEmissions();
 };
 
-// Complete a challenge logic
+/**
+ * Completes carbon challenge.
+ * @param {string} challengeId
+ */
 window.completeChallenge = function(challengeId) {
   if (AppState.completedToday.includes(challengeId)) return;
   
   const challenge = AppState.challenges.find(c => c.id === challengeId);
   AppState.completedToday.push(challengeId);
-  AppState.user.xp += challenge.xp; // award xp
-  
-  // Award streak progress
+  AppState.user.xp += challenge.xp;
   AppState.user.streak += 1;
   
   initChallenges();
   recalculateEmissions();
 };
 
-// 5. Chart.js Setup & Refresh Methods
+// Chart.js initialization
 function initCharts() {
-  // Check if Chart.js is loaded
   if (typeof Chart === 'undefined') return;
 
   const ctxPie = document.getElementById('breakdownChart');
@@ -461,10 +547,10 @@ function initCharts() {
         datasets: [{
           data: [0, 0, 0, 0],
           backgroundColor: [
-            'rgba(139, 92, 246, 0.7)',  // Violet
-            'rgba(6, 182, 212, 0.7)',   // Cyan
-            'rgba(16, 185, 129, 0.7)',  // Emerald Green
-            'rgba(245, 158, 11, 0.7)'   // Amber
+            'rgba(139, 92, 246, 0.7)',
+            'rgba(6, 182, 212, 0.7)',
+            'rgba(16, 185, 129, 0.7)',
+            'rgba(245, 158, 11, 0.7)'
           ],
           borderColor: 'rgba(15, 23, 42, 0.9)',
           borderWidth: 2
@@ -540,7 +626,7 @@ function initCharts() {
   }
 }
 
-// Redraw chart indicators
+// Refreshes the active values of charts
 function refreshCharts(t, e, d, c, total) {
   if (breakdownChart) {
     breakdownChart.data.datasets[0].data = [t, e, d, c];
@@ -548,14 +634,12 @@ function refreshCharts(t, e, d, c, total) {
   }
 
   if (projectionChart) {
-    // Calculate committed reduction sum
     let totalSavings = 0;
     AppState.commitments.forEach(cid => {
       const ch = AppState.challenges.find(x => x.id === cid);
       if (ch) totalSavings += ch.savings;
     });
 
-    // Simulated 6 month projection paths
     const bauPath = [total, total, total, total, total, total];
     const ecoPath = [
       total,

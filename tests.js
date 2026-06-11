@@ -3,6 +3,8 @@
    Automated unit testing for Carbon Calculation Engine formulas & baselines
    ========================================================================== */
 
+"use strict";
+
 (function() {
   // Simple Assert Library
   const Assert = {
@@ -168,7 +170,7 @@
 
     if (!terminal) return;
 
-    terminal.innerHTML = '';
+    terminal.textContent = '';
     Assert.logs.forEach(log => {
       const line = document.createElement('div');
       line.className = `terminal-line-${log.type}`;
@@ -177,11 +179,16 @@
     });
 
     if (summaryBadge) {
+      summaryBadge.textContent = '';
+      const span = document.createElement('span');
       if (Assert.failCount === 0) {
-        summaryBadge.innerHTML = `<span class="test-badge-pass">✅ ${Assert.passCount} / ${Assert.passCount} passed</span>`;
+        span.className = 'test-badge-pass';
+        span.textContent = `✅ ${Assert.passCount} / ${Assert.passCount} passed`;
       } else {
-        summaryBadge.innerHTML = `<span class="test-badge-fail">❌ ${Assert.failCount} failed, ${Assert.passCount} passed</span>`;
+        span.className = 'test-badge-fail';
+        span.textContent = `❌ ${Assert.failCount} failed, ${Assert.passCount} passed`;
       }
+      summaryBadge.appendChild(span);
     }
   }
 
