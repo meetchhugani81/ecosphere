@@ -2,6 +2,12 @@
 
 > A premium, client-side carbon footprint calculator with real-time visualizations, gamified eco-challenges, personalized recommendations, and a built-in unit test suite — all in vanilla JavaScript, zero dependencies, zero server.
 
+## 🔗 Live Demo
+
+🌐 **Live Application:** [https://your-vercel-url.vercel.app](https://y-seven-chi-81.vercel.app/)
+
+📂 **Source Code:** https://github.com/meetchhugani81/ecosphere
+
 ---
 
 ## 📸 Screenshots
