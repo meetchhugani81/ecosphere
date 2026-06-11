@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="EcoSphere - A smart, responsive carbon footprint tracker and reduction assistant. Calculate footprint, log green challenges, and get real-time insights.">
+  <title>EcoSphere | Carbon Footprint Tracker & Reduction Assistant</title>
+  
+  <!-- Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Local Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" role="navigation" aria-label="Main Navigation">
+      <div class="logo-area">
+        <i data-lucide="globe" class="logo-icon"></i>
+        <h1>EcoSphere</h1>
+      </div>
+      <nav class="nav-menu">
+        <button class="nav-item active" data-target="dashboard" aria-label="Go to Overview Dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-target="calculator" aria-label="Go to Carbon Calculator">
+          <i data-lucide="calculator"></i>
+          <span>Calculator</span>
+        </button>
+        <button class="nav-item" data-target="challenges" aria-label="Go to Eco Challenges">
+          <i data-lucide="award"></i>
+          <span>Eco Challenges</span>
+        </button>
+        <button class="nav-item" data-target="recommendations" aria-label="Go to Personalized Recommendations">
+          <i data-lucide="zap"></i>
+          <span>Recommendations</span>
+        </button>
+        <button class="nav-item" data-target="tests" aria-label="Go to System Tests">
+          <i data-lucide="shield-check"></i>
+          <span>System Tests</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <p>EcoSphere v1.0.0</p>
+        <span class="badge badge-success">Optimized</span>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Top Header -->
+      <header class="header">
+        <div class="header-title">
+          <h2>Welcome Back, <span id="user-name">Eco-Warrior</span></h2>
+          <p class="subtitle">Your small changes are making a big difference.</p>
+        </div>
+        <div class="header-badges">
+          <div class="header-badge streak-badge" id="streak-container" title="Daily streak of completed actions">
+            <span class="fire-icon">🔥</span>
+            <span id="streak-count">0</span> Day Streak
+          </div>
+          <div class="header-badge level-badge" id="level-container">
+            <i data-lucide="leaf"></i>
+            <span id="user-level">Eco-Novice</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Dashboard View -->
+      <section id="dashboard" class="content-section active">
+        <!-- Overview Dashboard Cards Grid -->
+        <div class="dashboard-grid">
+          
+          <!-- Large Circular Footprint Gauge -->
+          <div class="glass-card gauge-card">
+            <h3>Monthly Footprint</h3>
+            <div class="gauge-wrapper">
+              <svg class="progress-ring" width="220" height="220">
+                <circle class="progress-ring__circle-bg" stroke="rgba(255, 255, 255, 0.05)" stroke-width="14" fill="transparent" r="90" cx="110" cy="110"/>
+                <circle class="progress-ring__circle" stroke="url(#gradient-green)" stroke-width="14" fill="transparent" r="90" cx="110" cy="110" id="footprint-circle"/>
+                <defs>
+                  <linearGradient id="gradient-green" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#10b981" />
+                    <stop offset="100%" stop-color="#059669" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div class="gauge-text">
+                <span class="gauge-value" id="current-footprint-value">0</span>
+                <span class="gauge-unit">kg CO₂ / mo</span>
+              </div>
+            </div>
+            <div class="gauge-comparison">
+              <span id="footprint-vs-avg">Calculating baseline...</span>
+            </div>
+          </div>
+
+          <!-- Equivalence Stats Card -->
+          <div class="glass-card equivalence-card">
+            <h3>Your Carbon Equivalence</h3>
+            <div class="equivalence-grid">
+              <div class="eq-item">
+                <div class="eq-icon-wrapper trees">
+                  <i data-lucide="tree-pine"></i>
+                </div>
+                <div class="eq-info">
+                  <h4 id="eq-trees">0</h4>
+                  <p>Trees absorption/month</p>
+                </div>
+              </div>
+              <div class="eq-item">
+                <div class="eq-icon-wrapper flights">
+                  <i data-lucide="plane"></i>
+                </div>
+                <div class="eq-info">
+                  <h4 id="eq-flights">0</h4>
+                  <p>Short flights worth</p>
+                </div>
+              </div>
+              <div class="eq-item">
+                <div class="eq-icon-wrapper energy">
+                  <i data-lucide="smartphone"></i>
+                </div>
+                <div class="eq-info">
+                  <h4 id="eq-phones">0</h4>
+                  <p>Phone charges saved</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Category Breakdown Chart -->
+          <div class="glass-card chart-card">
+            <h3>Emissions Breakdown</h3>
+            <div class="chart-container">
+              <canvas id="breakdownChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Historical Projection Trend Chart -->
+          <div class="glass-card chart-card">
+            <h3>Your Carbon Path</h3>
+            <div class="chart-container">
+              <canvas id="projectionChart"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Calculator View -->
+      <section id="calculator" class="content-section">
+        <div class="calculator-header">
+          <h3>Carbon Calculator</h3>
+          <p>Adjust the controls below to accurately map your monthly carbon output.</p>
+        </div>
+        
+        <div class="calculator-grid">
+          
+          <!-- Transport Form -->
+          <div class="glass-card calculator-card">
+            <div class="card-header">
+              <i data-lucide="car"></i>
+              <h4>Transportation</h4>
+            </div>
+            <div class="form-group">
+              <label for="car-type">Primary Vehicle Type</label>
+              <select id="car-type" class="form-control" aria-label="Select primary vehicle type">
+                <option value="petrol">Gasoline/Diesel Car</option>
+                <option value="hybrid">Hybrid Car</option>
+                <option value="ev">Electric Vehicle (EV)</option>
+                <option value="moto">Motorcycle</option>
+                <option value="none">No Private Vehicle</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <div class="slider-header">
+                <label for="car-mileage">Driving Mileage (weekly)</label>
+                <span class="slider-val"><span id="car-mileage-val">100</span> miles</span>
+              </div>
+              <input type="range" id="car-mileage" min="0" max="500" value="100" class="slider" aria-label="Driving mileage per week in miles">
+            </div>
+            <div class="form-group">
+              <div class="slider-header">
+                <label for="transit-mileage">Public Transit (weekly)</label>
+                <span class="slider-val"><span id="transit-mileage-val">20</span> miles</span>
+              </div>
+              <input type="range" id="transit-mileage" min="0" max="300" value="20" class="slider" aria-label="Public transit mileage per week in miles">
+            </div>
+            <div class="form-group">
+              <div class="slider-header">
+                <label for="flights-yearly">Flight Hours (yearly)</label>
+                <span class="slider-val"><span id="flights-yearly-val">8</span> hrs</span>
+              </div>
+              <input type="range" id="flights-yearly" min="0" max="100" value="8" class="slider" aria-label="Yearly flight hours">
+            </div>
+          </div>
+
+          <!-- Home Energy Form -->
+          <div class="glass-card calculator-card">
+            <div class="card-header">
+              <i data-lucide="home"></i>
+              <h4>Home Energy</h4>
+            </div>
+            <div class="form-group">
+              <div class="slider-header">
+                <label for="energy-electricity">Electric Bill (monthly)</label>
+                <span class="slider-val">$<span id="energy-electricity-val">80</span></span>
+              </div>
+              <input type="range" id="energy-electricity" min="0" max="400" value="80" class="slider" aria-label="Monthly electricity bill in dollars">
+            </div>
+            <div class="form-group">
+              <div class="slider-header">
+                <label for="energy-heating">Heating Bill (monthly)</label>
+                <span class="slider-val">$<span id="energy-heating-val">40</span></span>
+              </div>
+              <input type="range" id="energy-heating" min="0" max="300" value="40" class="slider" aria-label="Monthly heating fuel bill in dollars">
+            </div>
+            <div class="form-group">
+              <div class="slider-header">
+                <label for="energy-clean-pct">Renewable Energy Share</label>
+                <span class="slider-val"><span id="energy-clean-pct-val">0</span>%</span>
+              </div>
+              <input type="range" id="energy-clean-pct" min="0" max="100" value="0" class="slider" aria-label="Percentage of home electricity from renewable sources">
+            </div>
+          </div>
+
+          <!-- Food & Diet Form -->
+          <div class="glass-card calculator-card">
+            <div class="card-header">
+              <i data-lucide="soup"></i>
+              <h4>Food & Diet</h4>
+            </div>
+            <div class="form-group">
+              <label for="diet-type">Diet Profile</label>
+              <select id="diet-type" class="form-control" aria-label="Select diet profile type">
+                <option value="meat-heavy">Heavy Meat Eater</option>
+                <option value="average" selected>Average Diet</option>
+                <option value="vegetarian">Vegetarian</option>
+                <option value="vegan">Vegan</option>
+              </select>
+            </div>
+            <div class="form-group switch-group">
+              <div class="switch-label">
+                <label for="diet-local">Source Local Food</label>
+                <p class="switch-desc">Prioritize seasonal and local groceries</p>
+              </div>
+              <input type="checkbox" id="diet-local" class="switch-input" aria-label="Source local food toggle">
+            </div>
+            <div class="form-group switch-group">
+              <div class="switch-label">
+                <label for="diet-waste">Minimize Food Waste</label>
+                <p class="switch-desc">Compost leftovers and plan meal portions</p>
+              </div>
+              <input type="checkbox" id="diet-waste" class="switch-input" aria-label="Minimize food waste toggle" checked>
+            </div>
+          </div>
+
+          <!-- Consumption Form -->
+          <div class="glass-card calculator-card">
+            <div class="card-header">
+              <i data-lucide="shopping-bag"></i>
+              <h4>Consumption & Waste</h4>
+            </div>
+            <div class="form-group">
+              <label for="shopping-level">Shopping Habits</label>
+              <select id="shopping-level" class="form-control" aria-label="Select shopping habits profile">
+                <option value="minimal">Minimalist (rare clothes/gadgets)</option>
+                <option value="average" selected>Moderate (normal purchases)</option>
+                <option value="high">Frequent (new tech, weekly clothing)</option>
+              </select>
+            </div>
+            <div class="form-group switch-group">
+              <div class="switch-label">
+                <label for="waste-recycle">Advanced Recycling</label>
+                <p class="switch-desc">Recycle paper, plastic, glass, and metal</p>
+              </div>
+              <input type="checkbox" id="waste-recycle" class="switch-input" aria-label="Advanced recycling toggle" checked>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Challenges View -->
+      <section id="challenges" class="content-section">
+        <div class="challenges-header">
+          <div class="header-text">
+            <h3>Eco-Habits & Challenges</h3>
+            <p>Commit to actions to lower your footprint. Each task logged saves real-time carbon and builds your eco-level.</p>
+          </div>
+          <div class="level-progress-wrapper">
+            <div class="level-progress-labels">
+              <span>Progress to Next Level</span>
+              <span id="level-progress-pct">0%</span>
+            </div>
+            <div class="level-progress-bar">
+              <div class="level-progress-fill" id="level-progress-fill" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="challenges-grid" id="challenges-container">
+          <!-- Populated by JavaScript -->
+        </div>
+      </section>
+
+      <!-- Recommendations View -->
+      <section id="recommendations" class="content-section">
+        <div class="recommendations-header">
+          <h3>Personalized Insights</h3>
+          <p>Based on your calculator inputs, here are the most impactful steps you can take to lower emissions.</p>
+        </div>
+        <div class="recommendations-container" id="recommendations-list">
+          <!-- Dynamic Recommendation Cards here -->
+        </div>
+      </section>
+
+      <!-- System Tests View -->
+      <section id="tests" class="content-section">
+        <div class="tests-header">
+          <h3>System Integrity Tests</h3>
+          <p>Run unit tests to verify the correctness of emissions formulas, calculation systems, and state models.</p>
+        </div>
+        <div class="glass-card test-runner-card">
+          <div class="test-controls">
+            <button id="run-tests-btn" class="btn btn-primary" aria-label="Run Unit Tests">Run Unit Tests</button>
+            <div class="test-summary-badge" id="test-summary">
+              <span class="test-badge-neutral">Ready to run</span>
+            </div>
+          </div>
+          <div class="test-log-terminal">
+            <div class="terminal-header">
+              <span>test_runner.js</span>
+              <div class="terminal-dots">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+              </div>
+            </div>
+            <pre class="terminal-body" id="test-log">Waiting for execution...</pre>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Built-in Scripts -->
+  <script src="tests.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
